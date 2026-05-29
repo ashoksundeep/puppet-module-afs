@@ -129,10 +129,33 @@ class afs (
     File[afs_config_cacheinfo],
     File[afs_config_client],
   ]
+
+  if $facts['os']['family'] == 'RedHat' and versioncmp($facts['os']['release']['major'], '10') >= 0 {
+    exec { 'afs_load_kernel_module':
+      command => '/usr/sbin/modprobe openafs',
+      path    => ['/usr/bin','/usr/sbin','/bin','/sbin'],
+      unless  => '/usr/sbin/lsmod | /usr/bin/grep -q "^openafs"',
+      require => Package['openafs'],
+    }
+  }
+
   $service_require = [
     File[afs_config_cacheinfo],
     File[afs_config_client],
   ]
+
+  if $facts['os']['family'] == 'RedHat' and versioncmp($facts['os']['release']['major'], '10') >= 0 {
+    $service_require = [
+      File[afs_config_cacheinfo],
+      File[afs_config_client],
+      Exec['afs_load_kernel_module'],
+    ]
+  } else {
+    $service_require = [
+      File[afs_config_cacheinfo],
+      File[afs_config_client],
+    ]
+  }
 
   package { $package_name:
     ensure => installed,
@@ -242,6 +265,11 @@ class afs (
     restart    => '/bin/true',
     status     => '/bin/ps -ef | /bin/grep -i "afsd" | /bin/grep -v "grep"',
     require    => $service_require,
+  }
+
+  if $facts['os']['family'] == 'RedHat' and versioncmp($facts['os']['release']['major'], '10') >= 0 {
+    File['afs_config_client']
+    ~> Exec['afs_rhel10_initial_start']
   }
 
   if ($afs_cron_job_content != undef) and ($afs_cron_job_interval != undef) {
