@@ -129,6 +129,15 @@ class afs (
     File[afs_config_cacheinfo],
     File[afs_config_client],
   ]
+
+  if $facts['os']['family'] == 'RedHat' and versioncmp($facts['os']['release']['major'], '10') >= 0 {
+    exec { 'afs_rhel10_initial_start':
+      command     => '/bin/systemctl start openafs-client',
+      path        => ['/bin', '/usr/bin', '/sbin', '/usr/sbin'],
+      refreshonly => true,
+    }
+  }
+
   $service_require = [
     File[afs_config_cacheinfo],
     File[afs_config_client],
@@ -242,6 +251,11 @@ class afs (
     restart    => '/bin/true',
     status     => '/bin/ps -ef | /bin/grep -i "afsd" | /bin/grep -v "grep"',
     require    => $service_require,
+  }
+
+  if $facts['os']['family'] == 'RedHat' and versioncmp($facts['os']['release']['major'], '10') >= 0 {
+    File['afs_config_client']
+    ~> Exec['afs_rhel10_initial_start']
   }
 
   if ($afs_cron_job_content != undef) and ($afs_cron_job_interval != undef) {
