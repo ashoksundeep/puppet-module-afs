@@ -131,10 +131,11 @@ class afs (
   ]
 
   if $facts['os']['family'] == 'RedHat' and versioncmp($facts['os']['release']['major'], '10') >= 0 {
-    exec { 'afs_rhel10_initial_start':
-      command     => '/bin/systemctl start openafs-client',
-      path        => ['/bin', '/usr/bin', '/sbin', '/usr/sbin'],
-      refreshonly => true,
+    exec { 'afs_load_kernel_module':
+      command => '/usr/sbin/modprobe openafs',
+      path    => ['/usr/bin','/usr/sbin','/bin','/sbin'],
+      unless  => '/usr/sbin/lsmod | /usr/bin/grep -q "^openafs"',
+      require => Package['openafs'],
     }
   }
 
@@ -142,6 +143,19 @@ class afs (
     File[afs_config_cacheinfo],
     File[afs_config_client],
   ]
+
+  if $facts['os']['family'] == 'RedHat' and versioncmp($facts['os']['release']['major'], '10') >= 0 {
+    $service_require = [
+      File[afs_config_cacheinfo],
+      File[afs_config_client],
+      Exec['afs_load_kernel_module'],
+    ]
+  } else {
+    $service_require = [
+      File[afs_config_cacheinfo],
+      File[afs_config_client],
+    ]
+  }
 
   package { $package_name:
     ensure => installed,
